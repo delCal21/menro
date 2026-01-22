@@ -1,0 +1,186 @@
+// Firestore security rules with signup + admin approval support
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 🔐 AUTH CHECK
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return request.auth.uid == userId;
+    }
+
+    // Get user role safely
+    function getUserRole() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath)
+        ? (get(userPath).data.role != null ? get(userPath).data.role : '')
+        : '';
+    }
+
+    function isBarangayOfficial() {
+      let role = getUserRole();
+      // Accept common variations (case-sensitive exact matches)
+      return role == 'barangay_official'
+        || role == 'Barangay_Official'
+        || role == 'BARANGAY_OFFICIAL'
+        || role == 'barangay'
+        || role == 'Barangay'
+        || role == 'BARANGAY';
+    }
+
+    function isRegularUser() {
+      let role = getUserRole();
+      // Accept common variations (case-sensitive exact matches)
+      return role == 'regularuser'
+        || role == 'RegularUser'
+        || role == 'REGULARUSER'
+        || role == 'regular_user'
+        || role == 'Regular_User'
+        || role == 'REGULAR_USER'
+        || role == 'user'
+        || role == 'User'
+        || role == 'USER';
+    }
+
+    function isAdmin() {
+      let role = getUserRole();
+      // Safely read auth email (may be null for some providers)
+      let email = request.auth != null && request.auth.token.email != null
+        ? request.auth.token.email
+        : '';
+
+      // Accept common role variations (case-sensitive exact matches)
+      let isRoleAdmin = role == 'admin'
+        || role == 'Admin'
+        || role == 'ADMIN';
+
+      // Also treat a specific account as admin by email
+      let isEmailAdmin = email == 'admin@gmail.com';
+
+      return isRoleAdmin || isEmailAdmin;
+    }
+
+    // Helper function to get barangay official's barangayId
+    function getBarangayOfficialBarangayId() {
+      let userPath = /databases/$(database)/documents/users/$(request.auth.uid);
+      return exists(userPath)
+        ? (get(userPath).data.barangayId != null ? get(userPath).data.barangayId : '')
+        : '';
+    }
+    
+    // Helper to check if report is assigned to this barangay official
+    function isReportAssignedToBarangayOfficial() {
+      return resource.data.assignedBarangayId != null
+        && resource.data.assignedBarangayId == getBarangayOfficialBarangayId();
+    }
+
+    // ===================== USERS (includes signup + admin approval) =====================
+    match /users/{userId} {
+      // Any signed-in user can read user docs (for your app’s flows)
+      allow read: if isAuthenticated();
+
+      // SIGNUP: create own user document after Firebase Auth signup
+      allow create: if isAuthenticated() && (
+        // Normal user self‑registration
+        (
+          isOwner(userId)
+          // Only normal users can self‑register; no client‑side admin creation
+          && request.resource.data.role == 'User'
+          // Require all fields your SignupScreen writes
+          && request.resource.data.keys().hasAll([
+            'email',
+            'role',
+            'name',
+            'status',
+            'approved',
+            'barangayId',
+            'barangayName',
+            'idType',
+            'idFileName',
+            'idImageUrl',
+            'idSubmittedAt',
+            'createdAt'
+          ])
+          // Enforce initial approval state
+          && request.resource.data.approved == false
+          && request.resource.data.status == 'pending'
+        )
+        // Admin can create / restore any user document (used by backup restore)
+        || isAdmin()
+      );
+
+      // Updates:
+      // - Owner: can edit profile but NOT role/approved/status
+      // - Admin: can update anything (used by Admin screen to approve pending users)
+      allow update: if isAuthenticated() && (
+        (
+          isOwner(userId) &&
+          !request.resource.data
+            .diff(resource.data)
+            .affectedKeys()
+            .hasAny(['role', 'approved', 'status'])
+        )
+        || isAdmin()
+      );
+
+      // Delete: owner or admin
+      allow delete: if isAuthenticated() && (isOwner(userId) || isAdmin());
+    }
+
+    // ===================== BARANGAYS (used by signup dropdown) =====================
+    match /barangays/{docId} {
+      // Signup screen reads barangays before login
+      allow read: if true;
+      // Writes only by barangay officials or admin
+      allow create, update, delete: if isBarangayOfficial() || isAdmin();
+    }
+
+    // ===================== ORDINANCES =====================
+    match /ordinances/{docId} {
+      allow read: if isAuthenticated();
+      allow create, update, delete: if isBarangayOfficial() || isAdmin();
+    }
+
+    // ===================== REPORTS =====================
+    match /reports/{reportId} {
+      allow read: if isAuthenticated();
+
+      allow create: if isAuthenticated() && (
+        // Normal user creating their own report
+        (
+          isRegularUser()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.keys().hasAll([
+            'userId','userName','ordinance','description',
+            'address','dateTime','reportedPerson','photoUrl',
+            'status','submittedAt','assignedBarangayId'
+          ])
+        )
+        // Admin can recreate reports from backups
+        || isAdmin()
+      );
+
+      // Allow update for any authenticated user (very permissive for testing)
+      allow update: if isAuthenticated();
+
+      allow delete: if isAuthenticated() && (
+        isOwner(request.resource.data.userId) || isAdmin()
+      );
+    }
+
+    // ===================== BACKUP MANAGEMENT =====================
+    match /backups/{backupId} {
+      allow read, create, update, delete: if isAuthenticated();
+    }
+
+    // ===================== TRANSACTION LOGS =====================
+    match /transaction_logs/{logId} {
+      allow read, write: if isAuthenticated();
+    }
+  }
+}
