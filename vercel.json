@@ -1,20 +1,4 @@
 {
-  "builds": [
-    {
-      "src": "package.json",
-      "use": "@vercel/static-build",
-      "config": {
-        "distDir": "build/web"
-      }
-    }
-  ],
-  "routes": [
-    {
-      "src": "/[^.]+",
-      "dest": "/index.html",
-      "status": 200
-    }
-  ],
   "cleanUrls": true,
   "trailingSlash": false,
   "headers": [
@@ -53,6 +37,12 @@
           "value": "public, max-age=0, must-revalidate"
         }
       ]
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
