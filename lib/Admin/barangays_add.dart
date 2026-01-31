@@ -10,13 +10,86 @@ class BarangaysPage extends StatefulWidget {
 }
 
 class _BarangaysPageState extends State<BarangaysPage> {
+  Future<void> _showEditDialog(String docId, Map<String, dynamic> data) async {
+    final TextEditingController nameController = TextEditingController(text: data['name'] ?? '');
+    final officials = (data['officials'] ?? []) as List<dynamic>;
+    final TextEditingController emailController = TextEditingController(text: officials.isNotEmpty ? officials.first['email'] ?? '' : '');
+    await showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Edit Barangay'),
+        content: SingleChildScrollView(
+          child: Column(
+            children: [
+              TextField(
+                controller: nameController,
+                decoration: const InputDecoration(labelText: 'Barangay Name'),
+              ),
+              TextField(
+                controller: emailController,
+                decoration: const InputDecoration(labelText: 'Official Email'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final newName = nameController.text.trim();
+              final newEmail = emailController.text.trim();
+              if (newName.isEmpty || newEmail.isEmpty) return;
+              await FirebaseFirestore.instance.collection('barangays').doc(docId).update({
+                'name': newName,
+                'officials': [
+                  {'name': newName, 'email': newEmail},
+                ],
+              });
+              if (mounted) Navigator.of(context).pop();
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _confirmDeleteBarangay(String docId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: const Text('Delete Barangay'),
+        content: const Text('Are you sure you want to delete this barangay?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await FirebaseFirestore.instance.collection('barangays').doc(docId).delete();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Barangay deleted')));
+      }
+    }
+  }
+
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  final TextEditingController _passwordController = TextEditingController();
-
+  
   bool _isAdding = false;
   bool _obscurePassword = true;
   int _currentPage = 0;
@@ -25,9 +98,8 @@ class _BarangaysPageState extends State<BarangaysPage> {
   Future<void> _addBarangayAndOfficial() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
-    final password = _passwordController.text.trim();
-
-    if (name.isEmpty || email.isEmpty || password.isEmpty) {
+    
+    if (name.isEmpty || email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
       );
@@ -47,15 +119,14 @@ class _BarangaysPageState extends State<BarangaysPage> {
               {
                 'name': name,
                 'email': email,
-                'password': password, // ⚠️ For demo only (insecure)
-              },
+                              },
             ],
           });
 
       // Create Firebase Auth account
       UserCredential cred = await _auth.createUserWithEmailAndPassword(
         email: email,
-        password: password,
+        password: 'Barangay@123', // Default hidden password
       );
 
       // Save official info in users collection - AUTOMATICALLY APPROVED
@@ -75,8 +146,7 @@ class _BarangaysPageState extends State<BarangaysPage> {
 
       _nameController.clear();
       _emailController.clear();
-      _passwordController.clear();
-
+      
       setState(() => _isAdding = false);
 
       Navigator.of(context).pop();
@@ -121,27 +191,7 @@ class _BarangaysPageState extends State<BarangaysPage> {
                   hintText: 'Enter email',
                 ),
               ),
-              TextField(
-                controller: _passwordController,
-                decoration: InputDecoration(
-                  labelText: 'Official Password',
-                  hintText: 'Enter password',
-                  suffixIcon: IconButton(
-                    icon: Icon(
-                      _obscurePassword
-                          ? Icons.visibility_off
-                          : Icons.visibility,
-                    ),
-                    onPressed: () {
-                      setState(() {
-                        _obscurePassword = !_obscurePassword;
-                      });
-                    },
-                  ),
-                ),
-                obscureText: _obscurePassword,
-              ),
-            ],
+                          ],
           ),
         ),
         actions: [
@@ -152,8 +202,7 @@ class _BarangaysPageState extends State<BarangaysPage> {
                     Navigator.of(context).pop();
                     _nameController.clear();
                     _emailController.clear();
-                    _passwordController.clear();
-                  },
+                                      },
             child: const Text('Cancel'),
           ),
           ElevatedButton(
@@ -187,7 +236,6 @@ class _BarangaysPageState extends State<BarangaysPage> {
           children: [
             Text('Name: ${official['name'] ?? 'N/A'}'),
             Text('Email: ${official['email'] ?? 'N/A'}'),
-            Text('Password: ${official['password'] ?? 'N/A'}'),
           ],
         ),
         actions: [
@@ -204,8 +252,7 @@ class _BarangaysPageState extends State<BarangaysPage> {
   void dispose() {
     _nameController.dispose();
     _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
+        super.dispose();
   }
 
   @override
@@ -393,18 +440,37 @@ class _BarangaysPageState extends State<BarangaysPage> {
                                         style: const TextStyle(fontSize: 13),
                                       ),
                                     ),
-                                    DataCell(
-                                      IconButton(
-                                        icon: const Icon(
-                                          Icons.info_outline,
-                                          size: 20,
-                                          color: Colors.blue,
+                                    DataCell(Row(
+                                      children: [
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.edit,
+                                            size: 20,
+                                            color: Colors.orange,
+                                          ),
+                                          onPressed: () => _showEditDialog(doc.id, data),
+                                          tooltip: 'Edit',
                                         ),
-                                        onPressed: () =>
-                                            _showBarangayInfo(data),
-                                        tooltip: 'View Details',
-                                      ),
-                                    ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.delete,
+                                            size: 20,
+                                            color: Colors.red,
+                                          ),
+                                          onPressed: () => _confirmDeleteBarangay(doc.id),
+                                          tooltip: 'Delete',
+                                        ),
+                                        IconButton(
+                                          icon: const Icon(
+                                            Icons.info_outline,
+                                            size: 20,
+                                            color: Colors.blue,
+                                          ),
+                                          onPressed: () => _showBarangayInfo(data),
+                                          tooltip: 'View Details',
+                                        ),
+                                      ],
+                                    )),
                                   ],
                                 );
                               }).toList(),

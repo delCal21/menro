@@ -2,11 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:capstone/Service/auth_service.dart';
 import 'package:capstone/View/login_page.dart';
 import 'package:capstone/User/ordinance_user_view.dart';
-import 'package:capstone/View/about_page.dart';
 import 'package:capstone/User/report_page.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:fl_chart/fl_chart.dart';
 
 class UserScreen extends StatefulWidget {
   const UserScreen({super.key});
@@ -64,9 +64,8 @@ class UserBaseScreen extends StatelessWidget {
               ),
             ),
             _drawerItem(Icons.dashboard, 'Dashboard', 0),
-            _drawerItem(Icons.report, 'REPORT', 1),
+            _drawerItem(Icons.add_box, '+ Report', 1),
             _drawerItem(Icons.book, 'Ordinances', 2),
-            _drawerItem(Icons.info, 'About', 3),
             const Divider(),
             ListTile(
               leading: const Icon(Icons.logout, color: Colors.red),
@@ -260,32 +259,309 @@ class _UserScreenState extends State<UserScreen> {
   }
 
   Widget _buildDashboard() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: const [
-            Icon(Icons.home, size: 72, color: Color(0xFFFF9800)),
-            SizedBox(height: 16),
-            Text(
-              'Welcome to CLEAR',
-              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-            ),
-            SizedBox(height: 8),
-            Text(
-              'Use the REPORT menu to track submissions or lodge a new one.',
-              textAlign: TextAlign.center,
-            ),
-          ],
-        ),
-      ),
+    if (_currentUser == null) {
+      return const Center(child: Text('Please log in.'));
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('reports')
+          .where('userId', isEqualTo: _currentUser!.uid)
+          .orderBy('dateTime', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return Center(child: Text('Error: ${snapshot.error}'));
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        final reports = snapshot.data!.docs;
+
+        // Calculate status counts
+        final pending = reports.where((d) => (d['status'] ?? '').toLowerCase() == 'pending').length;
+        final progress = reports.where((d) => (d['status'] ?? '').toLowerCase() == 'on progress').length;
+        final done = reports.where((d) => (d['status'] ?? '').toLowerCase() == 'done').length;
+
+        // Calculate most reported ordinances
+        final ordinanceCounts = <String, int>{};
+        for (final report in reports) {
+          final data = report.data() as Map<String, dynamic>;
+          final ordinance = data['ordinance'] ?? 'Unknown';
+          ordinanceCounts[ordinance] = (ordinanceCounts[ordinance] ?? 0) + 1;
+        }
+
+        // Sort ordinances by count (descending)
+        final sortedOrdinances = ordinanceCounts.entries.toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Welcome message
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFF9800),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Welcome Back!',
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.white,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'You have ${reports.length} reports',
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.white.withOpacity(0.9),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // Status cards row
+              Text(
+                'Report Status Overview',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0A4D68),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: Card(
+                      elevation: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              pending.toString(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.orange,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Pending',
+                              style: TextStyle(
+                                color: Colors.orange,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Card(
+                      elevation: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.blue.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              progress.toString(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.blue,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'On Progress',
+                              style: TextStyle(
+                                color: Colors.blue,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Card(
+                      elevation: 2,
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.green.shade50,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              done.toString(),
+                              style: const TextStyle(
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.green,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            const Text(
+                              'Done',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+
+              // Most Reported Ordinances Bar Chart
+              Text(
+                'Most Reported Ordinances',
+                style: const TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF0A4D68),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Card(
+                elevation: 2,
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: SizedBox(
+                    height: 240,
+                    child: sortedOrdinances.isEmpty
+                        ? Container(
+                            height: 150,
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade50,
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Center(
+                              child: Text(
+                                'No reports yet',
+                                style: TextStyle(color: Colors.grey),
+                              ),
+                            ),
+                          )
+                        : BarChart(
+                            BarChartData(
+                              barGroups: sortedOrdinances.take(5).map((entry) {
+                                return BarChartGroupData(
+                                  x: sortedOrdinances.indexOf(entry),
+                                  barRods: [
+                                    BarChartRodData(
+                                      toY: entry.value.toDouble(),
+                                      color: const Color(0xFF0A4D68),
+                                      width: 18,
+                                      borderRadius: BorderRadius.circular(6),
+                                      borderSide: BorderSide(color: Colors.white, width: 1),
+                                    ),
+                                  ],
+                                );
+                              }).toList(),
+                              barTouchData: BarTouchData(
+                                touchTooltipData: BarTouchTooltipData(
+                                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
+                                    final ordinance = sortedOrdinances[group.x].key;
+                                    final count = sortedOrdinances[group.x].value;
+                                    return BarTooltipItem(
+                                      '$ordinance\n$count reports',
+                                      const TextStyle(color: Colors.white),
+                                    );
+                                  },
+                                ),
+                              ),
+                              titlesData: FlTitlesData(
+                                show: true,
+                                bottomTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    reservedSize: 40, // Reserve space for the labels
+                                    getTitlesWidget: (value, meta) {
+                                      final index = value.toInt();
+                                      if (index < 0 || index >= sortedOrdinances.length) {
+                                        return const Text('');
+                                      }
+                                      final ordinance = sortedOrdinances[index].key;
+                                      // Truncate long ordinance names to prevent overcrowding
+                                      String displayName = ordinance.length > 10
+                                          ? '${ordinance.substring(0, 10)}...'
+                                          : ordinance;
+                                      return SideTitleWidget(
+                                        axisSide: meta.axisSide,
+                                        child: Text(
+                                          displayName,
+                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500),
+                                          textAlign: TextAlign.center,
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    },
+                                  ),
+                                ),
+                                leftTitles: AxisTitles(
+                                  sideTitles: SideTitles(
+                                    showTitles: true,
+                                    interval: 1,
+                                    getTitlesWidget: (value, meta) {
+                                      return Text(value.toInt().toString(), style: const TextStyle(fontSize: 10));
+                                    },
+                                  ),
+                                ),
+                                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                              ),
+                              gridData: FlGridData(show: false),
+                              borderData: FlBorderData(
+                                show: true,
+                                border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                              ),
+                            ),
+                          ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+            ],
+          ),
+        );
+      },
     );
   }
 
   Widget _buildOrdinances() => const OrdinanceUserView();
-  Widget _buildAbout() => const AboutPage();
 
   @override
   Widget build(BuildContext context) {
@@ -299,9 +575,6 @@ class _UserScreenState extends State<UserScreen> {
         break;
       case 2:
         body = _buildOrdinances();
-        break;
-      case 3:
-        body = _buildAbout();
         break;
       default:
         body = _buildDashboard();

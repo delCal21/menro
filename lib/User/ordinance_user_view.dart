@@ -21,25 +21,59 @@ class _OrdinanceUserViewState extends State<OrdinanceUserView> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(data['title'] ?? 'Untitled'),
+        contentPadding: const EdgeInsets.symmetric(vertical: 28, horizontal: 28),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: Row(
+          children: [
+            Icon(Icons.gavel, color: Colors.orange.shade700, size: 32),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                data['title'] ?? 'Untitled',
+                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 22),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
         content: SingleChildScrollView(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text(
-                'Description:',
-                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                decoration: BoxDecoration(
+                  color: Colors.orange.shade50,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  children: const [
+                    Icon(Icons.description, color: Colors.orange, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      'Description',
+                      style: TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+                    ),
+                  ],
+                ),
               ),
-              const SizedBox(height: 8),
+              const SizedBox(height: 10),
               Text(
                 data['description'] ?? 'No description available.',
-                style: const TextStyle(fontSize: 14),
+                style: const TextStyle(fontSize: 15, height: 1.5),
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Added on: $formattedDate',
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
+              const SizedBox(height: 24),
+              Row(
+                children: [
+                  const Icon(Icons.calendar_today, size: 16, color: Colors.grey),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Added on: $formattedDate',
+                    style: const TextStyle(fontSize: 13, color: Colors.grey),
+                  ),
+                ],
               ),
             ],
           ),

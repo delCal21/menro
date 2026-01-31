@@ -1078,7 +1078,7 @@ class _AcceptUsersPageState extends State<AcceptUsersPage> {
           child: _buildBarangayAccountCreator(),
         ),
         // Users Table
-        Expanded(child: _buildUsersList(users, showActions, context)),
+        _buildUsersList(users, showActions, context),
       ],
     );
   }
@@ -1519,19 +1519,20 @@ class _AcceptUsersPageState extends State<AcceptUsersPage> {
               child: TabBarView(
                 children: [
                   // All Users Tab
-                  Column(
-                    children: [
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          return _buildStatsCards(snapshot.data);
-                        },
-                      ),
-                      _buildSearchAndFilter(),
-                      Expanded(
-                        child: StreamBuilder<QuerySnapshot>(
+                  SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            return _buildStatsCards(snapshot.data);
+                          },
+                        ),
+                        _buildSearchAndFilter(),
+                        StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('users')
                               .snapshots(),
@@ -1567,60 +1568,61 @@ class _AcceptUsersPageState extends State<AcceptUsersPage> {
                             );
                           },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
 
                   // Pending Approval Tab
-                  Column(
-                    children: [
-                      StreamBuilder<QuerySnapshot>(
-                        stream: FirebaseFirestore.instance
-                            .collection('users')
-                            .snapshots(),
-                        builder: (context, snapshot) {
-                          if (snapshot.hasData) {
-                            final pendingCount = snapshot.data!.docs.where((
-                              doc,
-                            ) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              return (data['status'] ?? '')
-                                      .toString()
-                                      .toLowerCase() ==
-                                  'pending';
-                            }).length;
+                  SingleChildScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    child: Column(
+                      children: [
+                        StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('users')
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              final pendingCount = snapshot.data!.docs.where((
+                                doc,
+                              ) {
+                                final data = doc.data() as Map<String, dynamic>;
+                                return (data['status'] ?? '')
+                                        .toString()
+                                        .toLowerCase() ==
+                                    'pending';
+                              }).length;
 
-                            return Container(
-                              padding: const EdgeInsets.all(16),
-                              color: Colors.orange.shade50,
-                              width: double.infinity,
-                              child: Row(
-                                children: [
-                                  Icon(
-                                    Icons.info_outline,
-                                    color: Colors.orange.shade700,
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Expanded(
-                                    child: Text(
-                                      '$pendingCount user${pendingCount != 1 ? 's' : ''} waiting for approval',
-                                      style: TextStyle(
-                                        fontSize: 14,
-                                        fontWeight: FontWeight.w500,
-                                        color: Colors.orange.shade700,
+                              return Container(
+                                padding: const EdgeInsets.all(16),
+                                color: Colors.orange.shade50,
+                                width: double.infinity,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.info_outline,
+                                      color: Colors.orange.shade700,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Expanded(
+                                      child: Text(
+                                        '$pendingCount user${pendingCount != 1 ? 's' : ''} waiting for approval',
+                                        style: TextStyle(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w500,
+                                          color: Colors.orange.shade700,
+                                        ),
                                       ),
                                     ),
-                                  ),
-                                ],
-                              ),
-                            );
-                          }
-                          return const SizedBox.shrink();
-                        },
-                      ),
-                      _buildSearchAndFilter(),
-                      Expanded(
-                        child: StreamBuilder<QuerySnapshot>(
+                                  ],
+                                ),
+                              );
+                            }
+                            return const SizedBox.shrink();
+                          },
+                        ),
+                        _buildSearchAndFilter(),
+                        StreamBuilder<QuerySnapshot>(
                           stream: FirebaseFirestore.instance
                               .collection('users')
                               .where('status', isEqualTo: 'pending')
@@ -1653,8 +1655,8 @@ class _AcceptUsersPageState extends State<AcceptUsersPage> {
                             return _buildUsersList(pendingUsers, true, context);
                           },
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
               ),

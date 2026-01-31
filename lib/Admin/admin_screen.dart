@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:capstone/Service/auth_service.dart';
 import 'package:capstone/View/login_page.dart';
 import 'package:capstone/Admin/ordinances_add.dart';
-import 'package:capstone/View/about_page.dart';
 import 'package:capstone/Admin/barangays_add.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -1976,7 +1975,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                         TextButton.icon(
                           onPressed: () {
-                            setState(() => _selectedIndex = 7);
+                            setState(() => _selectedIndex = 6);
                           },
                           icon: const Icon(Icons.open_in_new, size: 16),
                           label: const Text('View All'),
@@ -2106,12 +2105,7 @@ class _AdminScreenState extends State<AdminScreen> {
                         ),
                         TextButton.icon(
                           onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (context) => const BarangaysPage(),
-                              ),
-                            );
+                            setState(() => _selectedIndex = 3);
                           },
                           icon: const Icon(Icons.open_in_new, size: 16),
                           label: const Text('Manage'),
@@ -2970,16 +2964,14 @@ class _AdminScreenState extends State<AdminScreen> {
       case 1:
         return const OrdinanceAddScreen();
       case 2:
-        return const AboutPage();
-      case 3:
         return const BarangaysPage();
-      case 4:
+      case 3:
         return const AcceptUsersPage();
-      case 5:
+      case 4:
         return _buildReportsPage();
-      case 6:
+      case 5:
         return _buildSystemSettings();
-      case 7:
+      case 6:
         return _buildTransactionLogsPage();
       default:
         return _buildDashboard();
@@ -3047,10 +3039,10 @@ class _AdminScreenState extends State<AdminScreen> {
                 ListTile(
                   leading: const Icon(Icons.receipt_long),
                   title: const Text('Reports'),
-                  selected: _selectedIndex == 5,
+                  selected: _selectedIndex == 4,
                   selectedTileColor: Colors.orange.withOpacity(0.1),
                   onTap: () {
-                    setState(() => _selectedIndex = 5);
+                    setState(() => _selectedIndex = 4);
                   },
                 ),
                 ListTile(
@@ -3065,6 +3057,15 @@ class _AdminScreenState extends State<AdminScreen> {
                 ListTile(
                   leading: const Icon(Icons.settings),
                   title: const Text('System Settings'),
+                  selected: _selectedIndex == 5,
+                  selectedTileColor: Colors.orange.withOpacity(0.1),
+                  onTap: () {
+                    setState(() => _selectedIndex = 5);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.history),
+                  title: const Text('Transaction Log'),
                   selected: _selectedIndex == 6,
                   selectedTileColor: Colors.orange.withOpacity(0.1),
                   onTap: () {
@@ -3072,39 +3073,21 @@ class _AdminScreenState extends State<AdminScreen> {
                   },
                 ),
                 ListTile(
-                  leading: const Icon(Icons.history),
-                  title: const Text('Transaction Logs'),
-                  selected: _selectedIndex == 7,
-                  selectedTileColor: Colors.orange.withOpacity(0.1),
-                  onTap: () {
-                    setState(() => _selectedIndex = 7);
-                  },
-                ),
-                ListTile(
                   leading: const Icon(Icons.location_city),
-                  title: const Text('Barangays'),
-                  selected: _selectedIndex == 3,
-                  selectedTileColor: Colors.orange.withOpacity(0.1),
-                  onTap: () {
-                    setState(() => _selectedIndex = 3);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.people),
-                  title: const Text('Users'),
-                  selected: _selectedIndex == 4,
-                  selectedTileColor: Colors.orange.withOpacity(0.1),
-                  onTap: () {
-                    setState(() => _selectedIndex = 4);
-                  },
-                ),
-                ListTile(
-                  leading: const Icon(Icons.info),
-                  title: const Text('About'),
+                  title: const Text('Barangay'),
                   selected: _selectedIndex == 2,
                   selectedTileColor: Colors.orange.withOpacity(0.1),
                   onTap: () {
                     setState(() => _selectedIndex = 2);
+                  },
+                ),
+                ListTile(
+                  leading: const Icon(Icons.people),
+                  title: const Text('User'),
+                  selected: _selectedIndex == 3,
+                  selectedTileColor: Colors.orange.withOpacity(0.1),
+                  onTap: () {
+                    setState(() => _selectedIndex = 3);
                   },
                 ),
               ],

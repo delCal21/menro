@@ -3,8 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:capstone/Service/auth_service.dart';
 import 'package:capstone/View/login_page.dart';
-import 'package:capstone/User/ordinance_user_view.dart';
-import 'package:capstone/View/about_page.dart';
+import 'package:capstone/Barangay/barangay_ordinance_view.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -25,8 +24,7 @@ class _BarangayOfficialScreenState extends State<BarangayOfficialScreen> {
     const _BarangayDashboard(),
     const _BarangayReportsPage(),
     const _BarangayUsersPage(),
-    OrdinanceUserView(),
-    AboutPage(),
+    const BarangayOrdinanceView(),
   ];
 
   final List<String> _pageTitles = [
@@ -34,7 +32,6 @@ class _BarangayOfficialScreenState extends State<BarangayOfficialScreen> {
     'Reports',
     'Users',
     'Ordinances',
-    'About',
   ];
 
   @override
@@ -137,11 +134,15 @@ class _BarangayOfficialScreenState extends State<BarangayOfficialScreen> {
         ],
       ),
       drawer: Drawer(
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.zero, // Sharp edges
+        ),
         child: Column(
           children: [
             UserAccountsDrawerHeader(
               decoration: const BoxDecoration(
                 color: Color(0xFF0A4D68), // Match Admin sidebar header color
+                borderRadius: BorderRadius.zero, // Sharp edges
               ),
               accountName: Text(barangayName ?? "Barangay Official"),
               accountEmail: FirebaseAuth.instance.currentUser?.email != null
@@ -184,13 +185,6 @@ class _BarangayOfficialScreenState extends State<BarangayOfficialScreen> {
               selected: _selectedIndex == 3,
               selectedTileColor: Colors.orange.withOpacity(0.1),
               onTap: () => _onSelectMenu(3),
-            ),
-            ListTile(
-              leading: const Icon(Icons.info),
-              title: const Text("About"),
-              selected: _selectedIndex == 4,
-              selectedTileColor: Colors.orange.withOpacity(0.1),
-              onTap: () => _onSelectMenu(4),
             ),
             const Spacer(),
             ListTile(
@@ -323,38 +317,6 @@ class _BarangayReportsPageState extends State<_BarangayReportsPage> {
       padding: const EdgeInsets.all(16),
       child: Column(
         children: [
-          // Debug info banner
-          if (userBarangayId != null)
-            Card(
-              color: Colors.blue.shade50,
-              child: Padding(
-                padding: const EdgeInsets.all(8.0),
-                child: Row(
-                  children: [
-                    const Icon(Icons.info, size: 16, color: Colors.blue),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Your Barangay ID: ${userBarangayId ?? "Not set"}',
-                        style: const TextStyle(fontSize: 12),
-                      ),
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.refresh, size: 20),
-                      onPressed: () {
-                        if (mounted) {
-                          setState(() {
-                            // Force rebuild
-                          });
-                        }
-                      },
-                      tooltip: 'Refresh',
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          const SizedBox(height: 8),
           Expanded(
             child: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
               stream: FirebaseFirestore.instance
@@ -1026,6 +988,7 @@ class _BarangayDashboard extends StatefulWidget {
 }
 
 class _BarangayDashboardState extends State<_BarangayDashboard> {
+  String? selectedViolation; // Track selected violation
   String? userBarangayId;
 
   @override
@@ -1111,18 +1074,169 @@ class _BarangayDashboardState extends State<_BarangayDashboard> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              // Dashboard Header
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0A4D68),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Barangay Dashboard',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Overview of reports assigned to your barangay',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white70,
+                          ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Status Overview Cards
               Text(
-                'Status Overview',
+                'Report Status Overview',
                 style: Theme.of(
                   context,
-                ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+                ).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.bold,
+                  color: const Color(0xFF0A4D68),
+                ),
               ),
-              const SizedBox(height: 12),
+              const SizedBox(height: 16),
               _buildStatusGrid(statusCounts),
-              const SizedBox(height: 32),
-              _buildTopViolationsCard(topViolations),
-              const SizedBox(height: 32),
-              _buildViolatorBarChart(violatorEntries),
+              const SizedBox(height: 24),
+
+              // Charts Section
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    flex: 1,
+                    child: _buildTopViolationsCard(topViolations),
+                  ),
+                  const SizedBox(width: 24),
+                  Expanded(
+                    flex: 1,
+                    child: _buildViolatorBarChart(violatorEntries),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              // Status Filter Controls
+              Card(
+                elevation: 3,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(
+                    color: Colors.grey.shade300,
+                    width: 1,
+                  ),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.filter_alt,
+                            color: Color(0xFF0A4D68),
+                          ),
+                          const SizedBox(width: 8),
+                          const Text(
+                            'Filter by Status',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF0A4D68),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilterChip(
+                            label: const Text('All'),
+                            selected: selectedViolation == null,
+                            onSelected: (_) {
+                              setState(() {
+                                selectedViolation = null;
+                              });
+                            },
+                            selectedColor: const Color(0xFF0A4D68),
+                            checkmarkColor: Colors.white,
+                          ),
+                          FilterChip(
+                            label: const Text('On Progress'),
+                            selected: selectedViolation == 'on progress',
+                            onSelected: (_) {
+                              setState(() {
+                                selectedViolation = 'on progress';
+                              });
+                            },
+                            selectedColor: Colors.purple,
+                            checkmarkColor: Colors.white,
+                          ),
+                          FilterChip(
+                            label: const Text('Pending'),
+                            selected: selectedViolation == 'pending',
+                            onSelected: (_) {
+                              setState(() {
+                                selectedViolation = 'pending';
+                              });
+                            },
+                            selectedColor: Colors.orange,
+                            checkmarkColor: Colors.white,
+                          ),
+                          FilterChip(
+                            label: const Text('Sent'),
+                            selected: selectedViolation == 'sent',
+                            onSelected: (_) {
+                              setState(() {
+                                selectedViolation = 'sent';
+                              });
+                            },
+                            selectedColor: Colors.amber,
+                            checkmarkColor: Colors.white,
+                          ),
+                          FilterChip(
+                            label: const Text('Done'),
+                            selected: selectedViolation == 'done',
+                            onSelected: (_) {
+                              setState(() {
+                                selectedViolation = 'done';
+                              });
+                            },
+                            selectedColor: Colors.green,
+                            checkmarkColor: Colors.white,
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // Filtered Reports List if a status is selected
+              if (selectedViolation != null)
+                _buildFilteredReportsListByStatus(docs, selectedViolation!),
             ],
           ),
         );
@@ -1189,25 +1303,57 @@ class _BarangayDashboardState extends State<_BarangayDashboard> {
 
   Widget _statusCard(String title, int count, Color color, IconData icon) {
     return Card(
-      color: color,
       elevation: 3,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, color: Colors.white),
-            const SizedBox(height: 12),
-            Text(
-              '$count',
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: Colors.white,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: color.withOpacity(0.3),
+          width: 1,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              color.withOpacity(0.1),
+              color.withOpacity(0.05),
+            ],
+          ),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: color.withOpacity(0.2),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Icon(icon, color: color),
               ),
-            ),
-            Text(title, style: const TextStyle(color: Colors.white70)),
-          ],
+              const SizedBox(height: 12),
+              Text(
+                '$count',
+                style: TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  color: color,
+                ),
+              ),
+              Text(
+                title,
+                style: TextStyle(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -1242,121 +1388,442 @@ class _BarangayDashboardState extends State<_BarangayDashboard> {
 
   Widget _buildTopViolationsCard(List<MapEntry<String, int>> entries) {
     return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Top 5 Most Reported Violations',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            if (entries.isEmpty)
-              const Text(
-                'No violation data yet.',
-                style: TextStyle(color: Colors.grey),
-              )
-            else
-              ...entries.map(
-                (entry) => ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    backgroundColor: Colors.orange.withOpacity(0.2),
-                    child: const Icon(
-                      Icons.warning_amber,
-                      color: Colors.orange,
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade50,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Icon(
+                    Icons.warning_amber_rounded,
+                    color: Colors.orange.shade700,
+                  ),
+                  const SizedBox(width: 8),
+                  const Text(
+                    'Top 5 Most Reported Violations',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0A4D68),
                     ),
                   ),
-                  title: Text(entry.key),
-                  trailing: Text(
-                    '${entry.value} report${entry.value == 1 ? '' : 's'}',
-                    style: const TextStyle(fontWeight: FontWeight.bold),
+                ],
+              ),
+              const SizedBox(height: 16),
+              if (entries.isEmpty)
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'No violation data yet.',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              else
+                ...entries.map(
+                  (entry) => Container(
+                    margin: const EdgeInsets.only(bottom: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: Colors.grey.shade300,
+                        width: 1,
+                      ),
+                    ),
+                    child: ListTile(
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                      leading: Container(
+                        padding: const EdgeInsets.all(6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Icon(
+                          Icons.warning_amber_rounded,
+                          color: Colors.orange.shade700,
+                          size: 20,
+                        ),
+                      ),
+                      title: Text(
+                        entry.key,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                      trailing: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                        decoration: BoxDecoration(
+                          color: Colors.orange.shade100,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          '${entry.value} report${entry.value == 1 ? '' : 's'}',
+                          style: TextStyle(
+                            color: Colors.orange.shade800,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                      selected: selectedViolation == entry.key,
+                      selectedTileColor: Colors.orange.shade50,
+                      onTap: () {
+                        setState(() {
+                          selectedViolation = selectedViolation == entry.key ? null : entry.key;
+                        });
+                      },
+                    ),
                   ),
                 ),
-              ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildViolatorBarChart(List<MapEntry<String, int>> entries) {
+  Widget _buildFilteredReportsListByStatus(List<QueryDocumentSnapshot<Map<String, dynamic>>> docs, String status) {
+    final filtered = docs.where((doc) {
+      final docStatus = (doc.data()['status'] ?? '').toString().toLowerCase();
+      if (status == 'on progress') {
+        return docStatus.contains('on progress') || docStatus == 'onprogress';
+      }
+      return docStatus == status;
+    }).toList();
+
+    if (filtered.isEmpty) {
+      return Card(
+        elevation: 3,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(12),
+          side: BorderSide(
+            color: Colors.grey.shade300,
+            width: 1,
+          ),
+        ),
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.grey.shade50,
+                Colors.white,
+              ],
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('No reports with status "$status".',
+                style: const TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+          ),
+        ),
+      );
+    }
+
     return Card(
-      elevation: 2,
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: entries.isEmpty
-            ? const Text(
-                'No violator data yet.',
-                style: TextStyle(color: Colors.grey),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Top Reported Individuals',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.blue.shade50,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: _getStatusColor(status).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(
+                    color: _getStatusColor(status),
+                    width: 1,
                   ),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    height: 280,
-                    child: BarChart(
-                      BarChartData(
-                        barGroups: _buildBarGroups(entries),
-                        gridData: FlGridData(
-                          show: true,
-                          drawHorizontalLine: true,
-                        ),
-                        borderData: FlBorderData(show: false),
-                        titlesData: FlTitlesData(
-                          topTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          rightTitles: const AxisTitles(
-                            sideTitles: SideTitles(showTitles: false),
-                          ),
-                          leftTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 32,
-                              interval: _barInterval(entries),
-                            ),
-                          ),
-                          bottomTitles: AxisTitles(
-                            sideTitles: SideTitles(
-                              showTitles: true,
-                              reservedSize: 120,
-                              getTitlesWidget: (value, meta) {
-                                final index = value.toInt();
-                                if (index < 0 || index >= entries.length) {
-                                  return const SizedBox.shrink();
-                                }
-                                final label = entries[index].key;
-                                return Padding(
-                                  padding: const EdgeInsets.only(top: 8),
-                                  child: Transform.rotate(
-                                    angle: -0.6,
-                                    alignment: Alignment.center,
-                                    child: Text(
-                                      label,
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontSize: 13),
-                                      maxLines: 2,
-                                      overflow: TextOverflow.visible,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ),
-                        ),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      _getStatusIcon(status),
+                      color: _getStatusColor(status),
+                      size: 16,
+                    ),
+                    const SizedBox(width: 8),
+                    Text('Reports with status "$status"',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 16,
+                          color: _getStatusColor(status),
+                        )),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+              ...filtered.map((doc) {
+                final data = doc.data();
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.grey.shade300,
+                      width: 1,
+                    ),
+                  ),
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: _getStatusColor(status).withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Icon(
+                        _getStatusIcon(status),
+                        color: _getStatusColor(status),
+                        size: 20,
+                      ),
+                    ),
+                    title: Text(
+                      data['reportedPerson'] ?? 'Unknown',
+                      style: const TextStyle(
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
+                    ),
+                    subtitle: Text(
+                      'Ordinance: ${data['ordinance'] ?? 'N/A'}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        color: Colors.grey,
+                      ),
+                    ),
+                    trailing: Text(
+                      'Date: ${_formatTimestampForList(data['dateTime'])}',
+                      style: const TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
                       ),
                     ),
                   ),
-                ],
-              ),
+                );
+              }).toList(),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Color _getStatusColor(String status) {
+    switch (status.toLowerCase()) {
+      case 'on progress':
+        return Colors.purple;
+      case 'pending':
+        return Colors.orange;
+      case 'sent':
+        return Colors.amber;
+      case 'done':
+        return Colors.green;
+      default:
+        return Colors.grey;
+    }
+  }
+
+  IconData _getStatusIcon(String status) {
+    switch (status.toLowerCase()) {
+      case 'on progress':
+        return Icons.run_circle;
+      case 'pending':
+        return Icons.pending_actions;
+      case 'sent':
+        return Icons.send;
+      case 'done':
+        return Icons.check_circle;
+      default:
+        return Icons.help_outline;
+    }
+  }
+
+  String _formatTimestampForList(dynamic timestamp) {
+    if (timestamp is Timestamp) {
+      return DateFormat('MM/dd').format(timestamp.toDate());
+    }
+    if (timestamp is DateTime) {
+      return DateFormat('MM/dd').format(timestamp);
+    }
+    return 'N/A';
+  }
+
+  Widget _buildViolatorBarChart(List<MapEntry<String, int>> entries) {
+    return Card(
+      elevation: 3,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(
+          color: Colors.grey.shade300,
+          width: 1,
+        ),
+      ),
+      child: Container(
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(12),
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              Colors.green.shade50,
+              Colors.white,
+            ],
+          ),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: entries.isEmpty
+              ? Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Text(
+                    'No violator data yet.',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          Icons.people_alt_rounded,
+                          color: Colors.green.shade700,
+                        ),
+                        const SizedBox(width: 8),
+                        const Text(
+                          'Top Reported Individuals',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: Color(0xFF0A4D68),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      height: 300,
+                      child: BarChart(
+                        BarChartData(
+                          barGroups: _buildBarGroups(entries),
+                          gridData: FlGridData(
+                            show: true,
+                            drawHorizontalLine: true,
+                            horizontalInterval: 1,
+                          ),
+                          borderData: FlBorderData(
+                            show: true,
+                            border: Border.all(
+                              color: Colors.grey.shade300,
+                              width: 1,
+                            ),
+                          ),
+                          titlesData: FlTitlesData(
+                            topTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            rightTitles: const AxisTitles(
+                              sideTitles: SideTitles(showTitles: false),
+                            ),
+                            leftTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 32,
+                                interval: _barInterval(entries),
+                              ),
+                            ),
+                            bottomTitles: AxisTitles(
+                              sideTitles: SideTitles(
+                                showTitles: true,
+                                reservedSize: 120,
+                                getTitlesWidget: (value, meta) {
+                                  final index = value.toInt();
+                                  if (index < 0 || index >= entries.length) {
+                                    return const SizedBox.shrink();
+                                  }
+                                  final label = entries[index].key;
+                                  return Padding(
+                                    padding: const EdgeInsets.only(top: 8),
+                                    child: Transform.rotate(
+                                      angle: -0.6,
+                                      alignment: Alignment.center,
+                                      child: Text(
+                                        label,
+                                        textAlign: TextAlign.center,
+                                        style: const TextStyle(fontSize: 10),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.visible,
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
+                          backgroundColor: Colors.transparent,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }

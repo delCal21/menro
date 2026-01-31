@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:capstone/Admin/admin_screen.dart';
 import 'package:capstone/User/user_screen.dart';
 import 'package:capstone/Barangay/barangay_official_screen.dart'; // <-- import this
@@ -99,31 +98,6 @@ class _LoginPageState extends State<LoginPage> {
       print('Login result: $result');
 
       if (!mounted) return;
-
-      // Platform-based access restriction:
-      // Mobile: Only regular users can login
-      // Web: Only admin and barangay officials can login (regular users not allowed)
-      if (!kIsWeb) {
-        // Mobile app - only allow regular users
-        if (result == 'Admin' || result == 'barangay_official') {
-          await _authService.signOut();
-          _showErrorDialog(
-            'Admin and Barangay officials can only login through the web application. '
-            'Please use the web version to access your account.',
-          );
-          return;
-        }
-      } else {
-        // Web - only allow admin and barangay officials
-        if (result == 'User') {
-          await _authService.signOut();
-          _showErrorDialog(
-            'Regular users are not allowed to login through the web application. '
-            'Please use the mobile app to access your account.',
-          );
-          return;
-        }
-      }
 
       if (result == 'Admin') {
         Navigator.pushReplacement(
