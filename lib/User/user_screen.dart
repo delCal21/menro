@@ -247,8 +247,7 @@ class _UserScreenState extends State<UserScreen> {
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const ReportPage()));
                 },
-                icon: const Icon(Icons.report),
-                label: const Text('Report'),
+                label: const Text('+ Report'),
                 backgroundColor: const Color(0xFFE6871A),
               ),
             ),

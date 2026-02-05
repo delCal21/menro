@@ -89,16 +89,15 @@ class _BarangaysPageState extends State<BarangaysPage> {
 
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _emailController = TextEditingController();
-  
+
   bool _isAdding = false;
-  bool _obscurePassword = true;
   int _currentPage = 0;
   static const int _itemsPerPage = 10;
 
   Future<void> _addBarangayAndOfficial() async {
     final name = _nameController.text.trim();
     final email = _emailController.text.trim();
-    
+
     if (name.isEmpty || email.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please fill in all fields')),
@@ -146,7 +145,7 @@ class _BarangaysPageState extends State<BarangaysPage> {
 
       _nameController.clear();
       _emailController.clear();
-      
+
       setState(() => _isAdding = false);
 
       Navigator.of(context).pop();
@@ -373,113 +372,227 @@ class _BarangaysPageState extends State<BarangaysPage> {
                   ],
                 ),
               ),
-              // Table
+              // Excel-style Table
               Expanded(
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    return Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: SingleChildScrollView(
-                        scrollDirection: Axis.horizontal,
-                        child: SingleChildScrollView(
-                          child: SizedBox(
-                            width: constraints.maxWidth > 0
-                                ? constraints.maxWidth - 32
-                                : double.infinity,
-                            child: DataTable(
-                              headingRowColor: MaterialStateProperty.all(
-                                const Color(0xFF0A4D68),
-                              ),
-                              headingTextStyle: const TextStyle(
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                              dataRowMinHeight: 60,
-                              dataRowMaxHeight: 80,
-                              columnSpacing: 20,
-                              horizontalMargin: 0,
-                              columns: const [
-                                DataColumn(label: Text('Barangay Name')),
-                                DataColumn(label: Text('Official Email')),
-                                DataColumn(label: Text('Official Name')),
-                                DataColumn(label: Text('Actions')),
+                child: Card(
+                  elevation: 4,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    side: BorderSide(color: Colors.grey.shade300, width: 1),
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        // Table Header
+                        Container(
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF4472C4), // Excel-style header color
+                            borderRadius: BorderRadius.circular(8),
+                            border: Border.all(color: Colors.grey.shade600),
+                          ),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  flex: 3,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: const Text(
+                                      'Barangay Name',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 3,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: const Text(
+                                      'Official Email',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: const Text(
+                                      'Official Name',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  flex: 2,
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: const Text(
+                                      'Actions',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 14,
+                                        color: Colors.white,
+                                      ),
+                                      textAlign: TextAlign.center,
+                                    ),
+                                  ),
+                                ),
                               ],
-                              rows: paginatedDocs.map((doc) {
-                                final data = doc.data() as Map<String, dynamic>;
-                                final name = data['name'] ?? 'Unnamed Barangay';
-
-                                // Get email and official name from first official if available
-                                String email = 'No email';
-                                String officialName = 'No name';
-                                if (data['officials'] != null &&
-                                    (data['officials'] as List).isNotEmpty) {
-                                  final official =
-                                      (data['officials'] as List).first;
-                                  email = official['email'] ?? 'No email';
-                                  officialName = official['name'] ?? 'No name';
-                                }
-
-                                return DataRow(
-                                  cells: [
-                                    DataCell(
-                                      Text(
-                                        name,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        email,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                    DataCell(
-                                      Text(
-                                        officialName,
-                                        style: const TextStyle(fontSize: 13),
-                                      ),
-                                    ),
-                                    DataCell(Row(
-                                      children: [
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.edit,
-                                            size: 20,
-                                            color: Colors.orange,
-                                          ),
-                                          onPressed: () => _showEditDialog(doc.id, data),
-                                          tooltip: 'Edit',
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.delete,
-                                            size: 20,
-                                            color: Colors.red,
-                                          ),
-                                          onPressed: () => _confirmDeleteBarangay(doc.id),
-                                          tooltip: 'Delete',
-                                        ),
-                                        IconButton(
-                                          icon: const Icon(
-                                            Icons.info_outline,
-                                            size: 20,
-                                            color: Colors.blue,
-                                          ),
-                                          onPressed: () => _showBarangayInfo(data),
-                                          tooltip: 'View Details',
-                                        ),
-                                      ],
-                                    )),
-                                  ],
-                                );
-                              }).toList(),
                             ),
                           ),
                         ),
-                      ),
-                    );
-                  },
+
+                        const SizedBox(height: 8),
+
+                        // Barangay Table
+                        Expanded(
+                          child: ListView.builder(
+                            itemCount: paginatedDocs.length,
+                            itemBuilder: (context, index) {
+                              final doc = paginatedDocs[index];
+                              final data = doc.data() as Map<String, dynamic>;
+                              final name = data['name'] ?? 'Unnamed Barangay';
+
+                              // Get email and official name from first official if available
+                              String email = 'No email';
+                              String officialName = 'No name';
+                              if (data['officials'] != null &&
+                                  (data['officials'] as List).isNotEmpty) {
+                                final official =
+                                    (data['officials'] as List).first as Map<String, dynamic>;
+                                email = official['email'] ?? 'No email';
+                                officialName = official['name'] ?? 'No name';
+                              }
+
+                              // Alternate row colors for Excel-like appearance
+                              Color rowColor = index % 2 == 0
+                                  ? const Color(0xFFFFFFFF) // White
+                                  : const Color(0xFFFCFCFC); // Light gray
+
+                              return Container(
+                                decoration: BoxDecoration(
+                                  color: rowColor,
+                                  border: Border(
+                                    left: BorderSide(color: Colors.grey.shade300),
+                                    right: BorderSide(color: Colors.grey.shade300),
+                                    top: BorderSide(color: Colors.grey.shade300),
+                                    bottom: index == paginatedDocs.length - 1
+                                        ? BorderSide(color: Colors.grey.shade300)
+                                        : BorderSide.none,
+                                  ),
+                                ),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+                                  child: Row(
+                                    children: [
+                                      Expanded(
+                                        flex: 3,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8.0),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              right: BorderSide(color: Colors.grey.shade300),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            name,
+                                            style: const TextStyle(
+                                              fontWeight: FontWeight.w500,
+                                              fontSize: 14,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 3,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8.0),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              right: BorderSide(color: Colors.grey.shade300),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            email,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8.0),
+                                          decoration: BoxDecoration(
+                                            border: Border(
+                                              right: BorderSide(color: Colors.grey.shade300),
+                                            ),
+                                          ),
+                                          child: Text(
+                                            officialName,
+                                            style: const TextStyle(
+                                              fontSize: 14,
+                                              color: Colors.grey,
+                                            ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      ),
+                                      Expanded(
+                                        flex: 2,
+                                        child: Container(
+                                          padding: const EdgeInsets.all(8.0),
+                                          child: Row(
+                                            mainAxisAlignment: MainAxisAlignment.center,
+                                            children: [
+                                              IconButton(
+                                                icon: const Icon(Icons.edit, size: 18, color: Colors.orange),
+                                                tooltip: 'Edit',
+                                                onPressed: () => _showEditDialog(doc.id, data),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                                                tooltip: 'Delete',
+                                                onPressed: () => _confirmDeleteBarangay(doc.id),
+                                              ),
+                                              IconButton(
+                                                icon: const Icon(Icons.info_outline, size: 18, color: Colors.blue),
+                                                tooltip: 'View Details',
+                                                onPressed: () => _showBarangayInfo(data),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
               // Pagination Controls

@@ -1731,7 +1731,7 @@ class _AdminScreenState extends State<AdminScreen> {
                       .collection('barangays')
                       .get(),
                   builder: (context, barangaysSnapshot) {
-                    if (barangaysSnapshot.connectionState == 
+                    if (barangaysSnapshot.connectionState ==
                         ConnectionState.waiting) {
                       return const Center(child: CircularProgressIndicator());
                     }
@@ -1741,8 +1741,8 @@ class _AdminScreenState extends State<AdminScreen> {
                     if (barangaysSnapshot.hasData) {
                       for (final barangayDoc in barangaysSnapshot.data!.docs) {
                         final barangayData = barangayDoc.data() as Map<String, dynamic>;
-                        final district = (barangayData['district'] ?? 
-                            barangayData['name'] ?? 
+                        final district = (barangayData['district'] ??
+                            barangayData['name'] ??
                             'Unknown District').toString();
                         barangayIdToDistrict[barangayDoc.id] = district;
                       }
@@ -1754,10 +1754,10 @@ class _AdminScreenState extends State<AdminScreen> {
                     for (final doc in filteredDocs) {
                       final data = doc.data() as Map<String, dynamic>;
                       final assignedBarangayId = data['assignedBarangayId'] as String?;
-                      
+
                       // Get district from barangay mapping, or use address as fallback
                       String district = 'Unassigned District';
-                      if (assignedBarangayId != null && 
+                      if (assignedBarangayId != null &&
                           barangayIdToDistrict.containsKey(assignedBarangayId)) {
                         district = barangayIdToDistrict[assignedBarangayId]!;
                       } else {
@@ -1767,7 +1767,7 @@ class _AdminScreenState extends State<AdminScreen> {
                           district = address;
                         }
                       }
-                      
+
                       final ordinance =
                           (data['ordinance'] ?? 'Unspecified Ordinance').toString();
                       districtCounts[district] =
@@ -3038,7 +3038,7 @@ class _AdminScreenState extends State<AdminScreen> {
                 ),
                 ListTile(
                   leading: const Icon(Icons.receipt_long),
-                  title: const Text('Reports'),
+                  title: const Text('Complaints'),
                   selected: _selectedIndex == 4,
                   selectedTileColor: Colors.orange.withOpacity(0.1),
                   onTap: () {

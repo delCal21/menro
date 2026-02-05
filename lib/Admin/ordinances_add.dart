@@ -16,6 +16,8 @@ class _OrdinanceAddScreenState extends State<OrdinanceAddScreen> {
 
   String searchQuery = '';
   String? _editingDocId;
+  String _sortField = 'dateAdded'; // Default sort field
+  bool _sortAscending = false; // Default sort order (newest first)
 
   Future<void> _showAddOrUpdateDialog({Map<String, dynamic>? data, String? docId}) async {
     if (data != null) {
@@ -72,9 +74,11 @@ class _OrdinanceAddScreenState extends State<OrdinanceAddScreen> {
     final description = _descriptionController.text.trim();
 
     if (title.isEmpty || description.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('All fields are required')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('All fields are required')),
+        );
+      }
       return;
     }
 
@@ -84,17 +88,21 @@ class _OrdinanceAddScreenState extends State<OrdinanceAddScreen> {
         'description': description,
         'dateAdded': Timestamp.now(),
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ordinance added successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ordinance added successfully!')),
+        );
+      }
     } else {
       await FirebaseFirestore.instance.collection('ordinances').doc(_editingDocId).update({
         'title': title,
         'description': description,
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ordinance updated successfully!')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ordinance updated successfully!')),
+        );
+      }
     }
 
     _clearForm();
@@ -197,11 +205,25 @@ class _OrdinanceAddScreenState extends State<OrdinanceAddScreen> {
 
     if (confirmed == true) {
       await FirebaseFirestore.instance.collection('ordinances').doc(docId).delete();
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Ordinance deleted')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Ordinance deleted')),
+        );
+      }
       _clearForm();
     }
+  }
+
+  // Sort function
+  void _sortData(String field) {
+    setState(() {
+      if (_sortField == field) {
+        _sortAscending = !_sortAscending;
+      } else {
+        _sortField = field;
+        _sortAscending = field == 'dateAdded' ? false : true; // Default to descending for dateAdded
+      }
+    });
   }
 
   @override
@@ -211,95 +233,326 @@ class _OrdinanceAddScreenState extends State<OrdinanceAddScreen> {
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            // Search Bar
-            TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Search ordinances...',
-                prefixIcon: const Icon(Icons.search),
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
-              ),
-              onChanged: (value) {
-                setState(() {
-                  searchQuery = value.toLowerCase();
-                });
-              },
+            // Search Bar and Controls
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _searchController,
+                    decoration: InputDecoration(
+                      hintText: 'Search ordinances...',
+                      prefixIcon: const Icon(Icons.search),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+                    ),
+                    onChanged: (value) {
+                      setState(() {
+                        searchQuery = value.toLowerCase();
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(width: 12),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.sort),
+                  tooltip: 'Sort by',
+                  onSelected: (String? value) {
+                    if (value != null) {
+                      _sortData(value);
+                    }
+                  },
+                  itemBuilder: (BuildContext context) => <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'title',
+                      child: Text('Sort by Title'),
+                    ),
+                    const PopupMenuItem<String>(
+                      value: 'dateAdded',
+                      child: Text('Sort by Date Added'),
+                    ),
+                  ],
+                ),
+              ],
             ),
             const SizedBox(height: 12),
 
-            // Ordinance List
+            // Single Card Containing the Entire Table
             Expanded(
-              child: StreamBuilder<QuerySnapshot>(
-                stream: FirebaseFirestore.instance
-                    .collection('ordinances')
-                    .orderBy('dateAdded', descending: true)
-                    .snapshots(),
-                builder: (context, snapshot) {
-                  if (snapshot.hasError) {
-                    return const Text('Error loading ordinances');
-                  }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
-                    return const Center(child: CircularProgressIndicator());
-                  }
-
-                  final docs = snapshot.data!.docs;
-
-                  // Filter based on search query
-                  final filteredDocs = docs.where((doc) {
-                    final data = doc.data() as Map<String, dynamic>;
-                    final title = (data['title'] ?? '').toString().toLowerCase();
-                    final description = (data['description'] ?? '').toString().toLowerCase();
-                    return title.contains(searchQuery) || description.contains(searchQuery);
-                  }).toList();
-
-                  if (filteredDocs.isEmpty) {
-                    return const Text('No ordinances found.');
-                  }
-
-                  return ListView.builder(
-                    itemCount: filteredDocs.length,
-                    itemBuilder: (context, index) {
-                      final doc = filteredDocs[index];
-                      final data = doc.data() as Map<String, dynamic>;
-                      return Card(
-                        margin: const EdgeInsets.symmetric(vertical: 6),
-                        child: ListTile(
-                          title: Text(
-                            data['title'] ?? 'No Title',
-                            style: const TextStyle(fontWeight: FontWeight.w600),
-                          ),
-                          trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
+              child: Card(
+                elevation: 4,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  side: BorderSide(color: Colors.grey.shade300, width: 1),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    children: [
+                      // Table Header
+                      Container(
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4472C4), // Excel-style header color
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(color: Colors.grey.shade600),
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                          child: Row(
                             children: [
-                              ElevatedButton.icon(
-                                onPressed: () => _showOrdinanceDetails(context, data),
-                                icon: const Icon(Icons.visibility, size: 18),
-                                label: const Text('View'),
-                                style: ElevatedButton.styleFrom(
-                                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                              Expanded(
+                                flex: 3,
+                                child: InkWell(
+                                  onTap: () => _sortData('title'),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Row(
+                                      children: [
+                                        const Text(
+                                          'Title',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        Icon(
+                                          _sortField == 'title'
+                                              ? _sortAscending
+                                                  ? Icons.arrow_upward
+                                                  : Icons.arrow_downward
+                                              : Icons.swap_vert,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 8),
-                              PopupMenuButton<String>(
-                                onSelected: (value) {
-                                  if (value == 'edit') {
-                                    _showAddOrUpdateDialog(data: data, docId: doc.id);
-                                  } else if (value == 'delete') {
-                                    _deleteOrdinance(doc.id);
-                                  }
-                                },
-                                itemBuilder: (context) => [
-                                  const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                                  const PopupMenuItem(value: 'delete', child: Text('Delete')),
-                                ],
+                              Expanded(
+                                flex: 4,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: const Text(
+                                    'Description',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: InkWell(
+                                  onTap: () => _sortData('dateAdded'),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(8.0),
+                                    child: Row(
+                                      children: [
+                                        const Text(
+                                          'Date Added',
+                                          style: TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 14,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        Icon(
+                                          _sortField == 'dateAdded'
+                                              ? _sortAscending
+                                                  ? Icons.arrow_upward
+                                                  : Icons.arrow_downward
+                                              : Icons.swap_vert,
+                                          size: 16,
+                                          color: Colors.white,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              Expanded(
+                                flex: 2,
+                                child: Container(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: const Text(
+                                    'Actions',
+                                    style: TextStyle(
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 14,
+                                      color: Colors.white,
+                                    ),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ),
                               ),
                             ],
                           ),
                         ),
-                      );
-                    },
-                  );
-                },
+                      ),
+
+                      const SizedBox(height: 8),
+
+                      // Ordinance Table
+                      Expanded(
+                        child: StreamBuilder<QuerySnapshot>(
+                          stream: FirebaseFirestore.instance
+                              .collection('ordinances')
+                              .orderBy(_sortField, descending: !_sortAscending)
+                              .snapshots(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasError) {
+                              return const Center(child: Text('Error loading ordinances'));
+                            }
+                            if (snapshot.connectionState == ConnectionState.waiting) {
+                              return const Center(child: CircularProgressIndicator());
+                            }
+
+                            final docs = snapshot.data!.docs;
+
+                            // Filter based on search query
+                            final filteredDocs = docs.where((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              final title = (data['title'] ?? '').toString().toLowerCase();
+                              final description = (data['description'] ?? '').toString().toLowerCase();
+                              return title.contains(searchQuery) || description.contains(searchQuery);
+                            }).toList();
+
+                            if (filteredDocs.isEmpty) {
+                              return const Center(child: Text('No ordinances found.'));
+                            }
+
+                            return Scrollbar(
+                              thumbVisibility: true,
+                              child: ListView.builder(
+                                itemCount: filteredDocs.length,
+                                itemBuilder: (context, index) {
+                                  final doc = filteredDocs[index];
+                                  final data = doc.data() as Map<String, dynamic>;
+
+                                  final timestamp = data['dateAdded'] as Timestamp?;
+                                  final formattedDate = timestamp != null
+                                      ? DateFormat('MMM dd, yyyy').format(timestamp.toDate())
+                                      : 'Not available';
+
+                                  // Alternate row colors for Excel-like appearance
+                                  Color rowColor = index % 2 == 0
+                                      ? const Color(0xFFFFFFFF) // White
+                                      : const Color(0xFFFCFCFC); // Light gray
+
+                                  return Container(
+                                    decoration: BoxDecoration(
+                                      color: rowColor,
+                                      border: Border(
+                                        left: BorderSide(color: Colors.grey.shade300),
+                                        right: BorderSide(color: Colors.grey.shade300),
+                                        top: BorderSide(color: Colors.grey.shade300),
+                                        bottom: index == filteredDocs.length - 1
+                                            ? BorderSide(color: Colors.grey.shade300)
+                                            : BorderSide.none,
+                                      ),
+                                    ),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4),
+                                      child: Row(
+                                        children: [
+                                          Expanded(
+                                            flex: 3,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(8.0),
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  right: BorderSide(color: Colors.grey.shade300),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                data['title'] ?? 'No Title',
+                                                style: const TextStyle(
+                                                  fontWeight: FontWeight.w500,
+                                                  fontSize: 14,
+                                                ),
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 4,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(8.0),
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  right: BorderSide(color: Colors.grey.shade300),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                data['description'] ?? 'No description',
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey,
+                                                ),
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(8.0),
+                                              decoration: BoxDecoration(
+                                                border: Border(
+                                                  right: BorderSide(color: Colors.grey.shade300),
+                                                ),
+                                              ),
+                                              child: Text(
+                                                formattedDate,
+                                                style: const TextStyle(
+                                                  fontSize: 14,
+                                                  color: Colors.grey,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                          Expanded(
+                                            flex: 2,
+                                            child: Container(
+                                              padding: const EdgeInsets.all(8.0),
+                                              child: Row(
+                                                mainAxisAlignment: MainAxisAlignment.center,
+                                                children: [
+                                                  IconButton(
+                                                    icon: const Icon(Icons.visibility, size: 18, color: Colors.blue),
+                                                    tooltip: 'View Details',
+                                                    onPressed: () => _showOrdinanceDetails(context, data),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.edit, size: 18, color: Colors.orange),
+                                                    tooltip: 'Edit',
+                                                    onPressed: () => _showAddOrUpdateDialog(data: data, docId: doc.id),
+                                                  ),
+                                                  IconButton(
+                                                    icon: const Icon(Icons.delete, size: 18, color: Colors.red),
+                                                    tooltip: 'Delete',
+                                                    onPressed: () => _deleteOrdinance(doc.id),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],
