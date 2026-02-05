@@ -1,6 +1,4 @@
-# Ignore Flutter build directory (we'll use the built web files)
-build/
-# Ignore other directories that aren't needed for web deployment
+# Ignore Flutter source directories that aren't needed for web deployment
 android/
 ios/
 windows/
@@ -11,6 +9,9 @@ linux/
 .pub/
 test/
 functions/
+lib/
 assets/
-# Ignore all files except the web build output
-!build/web/**
+build/
+dist/
+# Include the public directory with the web build output
+!public/**

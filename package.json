@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "dev": "flutter run -d chrome",
+    "test": "flutter test"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  }
+}
